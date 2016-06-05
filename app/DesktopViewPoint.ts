@@ -29,7 +29,10 @@ export default class DesktopViewPoint {
   private enterDown: boolean;
   private miniConsole: {
     shown: boolean,
-    dom: HTMLInputElement,
+    input: HTMLInputElement,
+    output: HTMLUListElement,
+    outputCount: number,
+    hider: number,
     history: Array<string>,
     historyIndex: number,
     currentText: string
@@ -56,7 +59,10 @@ export default class DesktopViewPoint {
     this.enterDown = false;
     this.miniConsole = {
       shown: false,
-      dom: <HTMLInputElement>document.querySelector('.miniConsoleInput'),
+      input: <HTMLInputElement>document.querySelector('.miniConsoleInput'),
+      output: <HTMLUListElement>document.querySelector('.miniConsoleOutput ul'),
+      outputCount: 0,
+      hider: 0,
       history: [],
       historyIndex: -1,
       currentText: ""
@@ -237,17 +243,17 @@ export default class DesktopViewPoint {
       if (event.keyCode === 38 || event.keyCode === 40) event.preventDefault();
       if (event.keyCode === 38 && this.miniConsole.history.length > this.miniConsole.historyIndex + 1) {
         if (this.miniConsole.historyIndex == -1) {
-          this.miniConsole.currentText = this.miniConsole.dom.value;
+          this.miniConsole.currentText = this.miniConsole.input.value;
         }
-        this.miniConsole.dom.value = this.miniConsole.history[++this.miniConsole.historyIndex];
+        this.miniConsole.input.value = this.miniConsole.history[++this.miniConsole.historyIndex];
       }
       // Down Arrow
       if (event.keyCode === 40 && this.miniConsole.historyIndex >= 0) {
         this.miniConsole.historyIndex--;
         if (this.miniConsole.historyIndex == -1) {
-          this.miniConsole.dom.value = this.miniConsole.currentText;
+          this.miniConsole.input.value = this.miniConsole.currentText;
         } else if (this.miniConsole.historyIndex >= 0) {
-          this.miniConsole.dom.value = this.miniConsole.history[this.miniConsole.historyIndex];
+          this.miniConsole.input.value = this.miniConsole.history[this.miniConsole.historyIndex];
         }
       }
     }
@@ -257,26 +263,57 @@ export default class DesktopViewPoint {
     if ((<any>window).blockMovement && !this.miniConsole.shown) {
       return;
     }
-    this.miniConsole.dom.style.display = this.miniConsole.shown ? "none" : "block";
+    this.miniConsole.input.style.display = this.miniConsole.shown ? "none" : "block";
     if (!this.miniConsole.shown) {
-      this.miniConsole.dom.focus();
+      // If we hit enter and it was hidden
+      // Clear any impending hides
+      if (this.miniConsole.hider) {
+        clearTimeout(this.miniConsole.hider);
+      }
+      this.miniConsole.output.style.display = "block";
+      this.miniConsole.input.focus();
       (<any>window).blockMovement = true;
       this.miniConsole.shown = true;
     } else {
-      var script = this.miniConsole.dom.value;
-      this.miniConsole.history.unshift(script);
-      this.miniConsole.dom.value = "";
-      this.miniConsole.dom.blur();
+      // If we hit enter and it was on-screen
+      var script = this.miniConsole.input.value;
+      this.miniConsole.input.value = "";
+      this.miniConsole.input.blur();
       (<any>window).blockMovement = false;
       this.miniConsole.shown = false;
       if (script.length > 0) {
+        this.miniConsole.history.unshift(script);
         const res = this.workerInterface.runScript(script, true);
         if (res instanceof Promise) {
           return res.then((res:any) => {
+            this.addMiniConsoleOutput(res.result);
             console.log(res.result);
           });
         }
+      } else {
+        this.miniConsole.output.style.display = "none";
       }
     }
+  }
+
+  addMiniConsoleOutput(result: string) {
+    var line = document.createElement("li");
+    line.innerText = result;
+    this.miniConsole.output.appendChild(line);
+    // Hide output after 5 seconds
+    if (this.miniConsole.hider) {
+      clearTimeout(this.miniConsole.hider);
+    }
+    this.miniConsole.hider = setTimeout(() => {
+      this.miniConsole.output.style.display = "none";
+    }, 5000);
+    this.miniConsole.outputCount++;
+    // If we have more than 5 outputs, remove the top one
+    if (this.miniConsole.outputCount > 5) {
+      var oldestChild: HTMLLIElement = <HTMLLIElement>this.miniConsole.output.querySelector("li");
+      this.miniConsole.output.removeChild(oldestChild);
+      this.miniConsole.outputCount--;
+    }
+    return;
   }
 }
