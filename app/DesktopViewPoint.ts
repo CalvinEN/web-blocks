@@ -80,6 +80,16 @@ export default class DesktopViewPoint {
     this.trusted = event.isTrusted;
   }
 
+  handlePointerLock() {
+    if (!document.pointerLockElement) {
+      this.viewPort.requestPointerLock();
+      this.pointerLock = true;
+    } else if (this.trusted) {
+      document.exitPointerLock();
+      this.pointerLock = false;
+    }
+  }
+
   onWindowResize() {
     const width = this.viewPort.clientWidth, height = this.viewPort.clientHeight;
 
@@ -95,30 +105,7 @@ export default class DesktopViewPoint {
 
   keyDown(event: any) {
 
-    if (event.keyCode === 13 && !this.enterDown) {
-      this.enterDown = true;
-      this.miniConsoleToggle();
-    }
-
-    if (this.miniConsole.shown) {
-      // Up Arrow
-      if (event.keyCode === 38 || event.keyCode === 40) event.preventDefault();
-      if (event.keyCode === 38 && this.miniConsole.history.length > this.miniConsole.historyIndex + 1) {
-        if (this.miniConsole.historyIndex == -1) {
-          this.miniConsole.currentText = this.miniConsole.dom.value;
-        }
-        this.miniConsole.dom.value = this.miniConsole.history[++this.miniConsole.historyIndex];
-      }
-      // Down Arrow
-      if (event.keyCode === 40 && this.miniConsole.historyIndex >= 0) {
-        this.miniConsole.historyIndex--;
-        if (this.miniConsole.historyIndex == -1) {
-          this.miniConsole.dom.value = this.miniConsole.currentText;
-        } else if (this.miniConsole.historyIndex >= 0) {
-          this.miniConsole.dom.value = this.miniConsole.history[this.miniConsole.historyIndex];
-        }
-      }
-    }
+    this.handleMiniConsole(event);
 
     if ((<any>window).blockMovement) return;
 
@@ -134,15 +121,7 @@ export default class DesktopViewPoint {
     if (event.keyCode === 37) this.movement.turn.x = 1;            // Left Arrow (Turn Left)
     if (event.keyCode === 39) this.movement.turn.x = -1;           // Right Arrow (Turn Right)
 
-    if (event.shiftKey) {
-      if (!document.pointerLockElement) {
-        this.viewPort.requestPointerLock();
-        this.pointerLock = true;
-      } else if (this.trusted) {
-        document.exitPointerLock();
-        this.pointerLock = false;
-      }
-    }
+    if (event.shiftKey) this.handlePointerLock();
 
     if (event.keyCode === 32 && !this.workerInterface.jumping) this.workerInterface.jump();
 
@@ -244,6 +223,33 @@ export default class DesktopViewPoint {
       && this.pointerLock
       && this.trusted) {
       this.viewPort.requestPointerLock();
+    }
+  }
+
+  handleMiniConsole(event: any) {
+    if (event.keyCode === 13 && !this.enterDown) {
+      this.enterDown = true;
+      this.miniConsoleToggle();
+    }
+
+    if (this.miniConsole.shown) {
+      // Up Arrow
+      if (event.keyCode === 38 || event.keyCode === 40) event.preventDefault();
+      if (event.keyCode === 38 && this.miniConsole.history.length > this.miniConsole.historyIndex + 1) {
+        if (this.miniConsole.historyIndex == -1) {
+          this.miniConsole.currentText = this.miniConsole.dom.value;
+        }
+        this.miniConsole.dom.value = this.miniConsole.history[++this.miniConsole.historyIndex];
+      }
+      // Down Arrow
+      if (event.keyCode === 40 && this.miniConsole.historyIndex >= 0) {
+        this.miniConsole.historyIndex--;
+        if (this.miniConsole.historyIndex == -1) {
+          this.miniConsole.dom.value = this.miniConsole.currentText;
+        } else if (this.miniConsole.historyIndex >= 0) {
+          this.miniConsole.dom.value = this.miniConsole.history[this.miniConsole.historyIndex];
+        }
+      }
     }
   }
 
