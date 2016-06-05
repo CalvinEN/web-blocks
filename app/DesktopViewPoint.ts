@@ -32,7 +32,7 @@ export default class DesktopViewPoint {
     input: HTMLInputElement,
     output: HTMLUListElement,
     outputCount: number,
-    hider: number,
+    hider: NodeJS.Timer,
     history: Array<string>,
     historyIndex: number,
     currentText: string
@@ -62,7 +62,7 @@ export default class DesktopViewPoint {
       input: <HTMLInputElement>document.querySelector('.miniConsoleInput'),
       output: <HTMLUListElement>document.querySelector('.miniConsoleOutput ul'),
       outputCount: 0,
-      hider: 0,
+      hider: null,
       history: [],
       historyIndex: -1,
       currentText: ""
@@ -80,6 +80,7 @@ export default class DesktopViewPoint {
     document.addEventListener('visibilitychange', (e: any) => this.refreshPointerLock(), false);
 
     this.workerInterface.playerPositionListener = this.onPlayerPositionChanged.bind(this);
+    this.workerInterface.print = this.addMiniConsoleOutput.bind(this);
   }
 
   onPointerLockChange(event: any) {
@@ -297,6 +298,7 @@ export default class DesktopViewPoint {
   }
 
   addMiniConsoleOutput(result: string) {
+    if (!result || result === "") return;
     var line = document.createElement("li");
     line.innerText = result;
     this.miniConsole.output.appendChild(line);
@@ -307,9 +309,8 @@ export default class DesktopViewPoint {
     this.miniConsole.hider = setTimeout(() => {
       this.miniConsole.output.style.display = "none";
     }, 5000);
-    this.miniConsole.outputCount++;
-    // If we have more than 5 outputs, remove the top one
-    if (this.miniConsole.outputCount > 5) {
+    // If we have more than 6 outputs, remove the top one
+    if (this.miniConsole.outputCount++ > 5) {
       var oldestChild: HTMLLIElement = <HTMLLIElement>this.miniConsole.output.querySelector("li");
       this.miniConsole.output.removeChild(oldestChild);
       this.miniConsole.outputCount--;
