@@ -23,6 +23,27 @@ body {
   -webkit-flex: 1;
   position: relative;
 
+  .miniConsole {
+    input:focus {outline:0;}
+    .miniConsoleInput {
+      height: 40px;
+      width: 60%;
+      line-height: 40px;
+      position: absolute;
+      bottom: 80px;
+      left: 5px;
+      right: 0;
+      padding-top: 0;
+      padding-left: 10px;
+      color: #fff;
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 2px;
+      border: none;
+      font-size: 22px;
+      display: none;
+    }
+  }
+
   .helpBar {
     height: 40px;
     line-height: 40px;

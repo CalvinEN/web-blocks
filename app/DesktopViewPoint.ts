@@ -1,3 +1,4 @@
+import HTML = Mocha.reporters.HTML;
 "use strict";
 /// <reference path="../typings/tsd.d.ts" />
 import _ = require('underscore');
@@ -25,6 +26,15 @@ export default class DesktopViewPoint {
   private position: THREE.Vector3;
   private movement: Movement;
 
+  private enterDown: boolean;
+  private miniConsole: {
+    shown: boolean,
+    dom: HTMLInputElement,
+    history: Array<string>,
+    historyIndex: number,
+    currentText: string
+  };
+
   constructor(camera: THREE.PerspectiveCamera, light: THREE.Light, viewPort: HTMLDivElement, renderer: THREE.Renderer, scene: THREE.Scene, worldInfo: com.WorldInfo, workerInterface: WorkerInterface) {
     this.camera = camera;
     this.light = light;
@@ -43,6 +53,16 @@ export default class DesktopViewPoint {
     this.pointerLock = false;
     this.trusted = false;
 
+    this.enterDown = false;
+    this.miniConsole = {
+      shown: false,
+      dom: <HTMLInputElement>document.querySelector('.miniConsoleInput'),
+      history: [],
+      historyIndex: -1,
+      currentText: ""
+    };
+
+
     window.addEventListener('resize', _.debounce(() => this.onWindowResize(), 500), false);
 
     document.addEventListener('keydown', (e: any) => this.keyDown(e), false);
@@ -50,6 +70,7 @@ export default class DesktopViewPoint {
 
     document.addEventListener('pointerlockchange', (e: any) => this.onPointerLockChange(e), false);
     this.viewPort.addEventListener("mousemove", (e: any) => this.mouseMove(e), false);
+
     document.addEventListener('visibilitychange', (e: any) => this.refreshPointerLock(), false);
 
     this.workerInterface.playerPositionListener = this.onPlayerPositionChanged.bind(this);
@@ -73,6 +94,32 @@ export default class DesktopViewPoint {
   }
 
   keyDown(event: any) {
+
+    if (event.keyCode === 13 && !this.enterDown) {
+      this.enterDown = true;
+      this.miniConsoleToggle();
+    }
+
+    if (this.miniConsole.shown) {
+      // Up Arrow
+      if (event.keyCode === 38 || event.keyCode === 40) event.preventDefault();
+      if (event.keyCode === 38 && this.miniConsole.history.length > this.miniConsole.historyIndex + 1) {
+        if (this.miniConsole.historyIndex == -1) {
+          this.miniConsole.currentText = this.miniConsole.dom.value;
+        }
+        this.miniConsole.dom.value = this.miniConsole.history[++this.miniConsole.historyIndex];
+      }
+      // Down Arrow
+      if (event.keyCode === 40 && this.miniConsole.historyIndex >= 0) {
+        this.miniConsole.historyIndex--;
+        if (this.miniConsole.historyIndex == -1) {
+          this.miniConsole.dom.value = this.miniConsole.currentText;
+        } else if (this.miniConsole.historyIndex >= 0) {
+          this.miniConsole.dom.value = this.miniConsole.history[this.miniConsole.historyIndex];
+        }
+      }
+    }
+
     if ((<any>window).blockMovement) return;
 
     if (event.keyCode === 65) this.movement.move.x = 1;        // A (Left)
@@ -115,6 +162,8 @@ export default class DesktopViewPoint {
     if (event.keyCode === 37) this.movement.turn.x = 0;            // Left Arrow (Turn Left)
     if (event.keyCode === 39) this.movement.turn.x = 0;            // Right Arrow (Turn Right)
 
+    if (event.keyCode === 13) this.enterDown = false;
+
     if (event.keyCode === 32) this.workerInterface.jumping = false;
 
     if (event.keyCode === 27) this.refreshPointerLock();
@@ -123,7 +172,8 @@ export default class DesktopViewPoint {
   }
 
   mouseMove(event: any) {
-    if ((<any>window).blockMovement || !this.pointerLock || !this.trusted || !document.pointerLockElement) {
+    if (((<any>window).blockMovement && !this.miniConsole.shown )
+        || !this.pointerLock || !this.trusted || !document.pointerLockElement) {
       return;
     }
 
@@ -194,6 +244,33 @@ export default class DesktopViewPoint {
       && this.pointerLock
       && this.trusted) {
       this.viewPort.requestPointerLock();
+    }
+  }
+
+  miniConsoleToggle() {
+    if ((<any>window).blockMovement && !this.miniConsole.shown) {
+      return;
+    }
+    this.miniConsole.dom.style.display = this.miniConsole.shown ? "none" : "block";
+    if (!this.miniConsole.shown) {
+      this.miniConsole.dom.focus();
+      (<any>window).blockMovement = true;
+      this.miniConsole.shown = true;
+    } else {
+      var script = this.miniConsole.dom.value;
+      this.miniConsole.history.unshift(script);
+      this.miniConsole.dom.value = "";
+      this.miniConsole.dom.blur();
+      (<any>window).blockMovement = false;
+      this.miniConsole.shown = false;
+      if (script.length > 0) {
+        const res = this.workerInterface.runScript(script, true);
+        if (res instanceof Promise) {
+          return res.then((res:any) => {
+            console.log(res.result);
+          });
+        }
+      }
     }
   }
 }

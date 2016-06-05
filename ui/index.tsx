@@ -69,6 +69,9 @@ const ViewPort = React.createClass<{ ref: string }, any>({
   render() {
     return (
       <div className="viewPort">
+        <div className="miniConsole">
+          <input className="miniConsoleInput" />
+        </div>
         <div className="helpBar">Keys: [WASD] = Walk, Arrow Keys / [SHIFT] = Toggle Look With Mouse, [SPACE] = Jump, [ESCAPE] = Toggle Code Editor</div>
       </div>
     );
